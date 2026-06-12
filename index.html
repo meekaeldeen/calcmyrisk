@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CalcMyRisk — Position Size Calculator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+  <!-- Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-R9ZN1K9L9N"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){ dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-R9ZN1K9L9N');
+  </script>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5300397508287262" crossorigin="anonymous"></script>
+
+  <style>
+    /* ── Dark tokens ── */
+    :root {
+      --bg:       #080D1A;
+      --surface:  #0F1629;
+      --surface2: #151E35;
+      --border:   #1E2D4A;
+      --text:     #E8EDF5;
+      --text-sub: #C4CEDD;
+      --muted:    #5A6680;
+      --label:    #8892A4;
+      --accent:   #00D4FF;
+      --positive: #00E5A0;
+      --warning:  #FF6B35;
+    }
+    /* ── Light tokens ── */
+    body:not(.dark-mode) {
+      --bg:       #F0F4FA;
+      --surface:  #FFFFFF;
+      --surface2: #EDF1F8;
+      --border:   #C8D4E8;
+      --text:     #0A0F1E;
+      --text-sub: #1E2D45;
+      --muted:    #6B7A99;
+      --label:    #4A5568;
+      --accent:   #007ACC;
+      --positive: #007A55;
+      --warning:  #C04A1A;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      transition: background 0.25s, color 0.25s;
+      min-height: 100vh;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      position: relative;
+      transition: background 0.25s, border-color 0.25s;
+    }
+    .card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0.6;
+      border-radius: 12px 12px 0 0;
+    }
+    .card:hover { border-color: rgba(0,180,220,0.4); }
+
+    .field {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 15px;
+      font-weight: 500;
+      border-radius: 8px;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.25s, color 0.25s;
+      -moz-appearance: textfield;
+    }
+    .field::-webkit-inner-spin-button,
+    .field::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .field::placeholder { color: var(--muted); font-weight: 400; }
+    .field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,180,220,0.15); }
+
+    .lbl {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-weight: 600;
+      color: var(--label);
+      margin-bottom: 6px;
+      transition: color 0.25s;
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 12px;
+      background: var(--accent);
+      color: #050A14;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: filter 0.2s, box-shadow 0.2s, transform 0.1s;
+    }
+    .btn-primary:hover { filter: brightness(1.12); box-shadow: 0 0 20px rgba(0,180,220,0.35); }
+    .btn-primary:active { transform: scale(0.98); }
+    body:not(.dark-mode) .btn-primary { color: #FFFFFF; }
+
+    #result { margin-top: 14px; }
+
+    .risk-table-wrap {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      max-height: 320px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+      transition: border-color 0.25s;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      background: var(--surface2);
+      color: var(--label);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 700;
+      padding: 10px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 1;
+      transition: background 0.25s, color 0.25s, border-color 0.25s;
+    }
+    tbody td {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      transition: color 0.25s, border-color 0.25s, background 0.15s;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: rgba(0,180,220,0.06); }
+    tbody td.green { color: var(--positive); font-weight: 700; }
+    tbody td.warn  { color: var(--warning);  font-weight: 600; }
+
+    #toggleThemeBtn {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      transition: border-color 0.2s, color 0.2s, background 0.25s;
+    }
+    #toggleThemeBtn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .status-pill {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      display: flex; align-items: center; gap: 6px;
+      transition: background 0.25s, border-color 0.25s, color 0.25s;
+    }
+
+    @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+
+    @keyframes reveal { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+    .reveal { animation: reveal 0.25s ease forwards; }
+
+    .hero-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(28px, 5vw, 44px);
+      font-weight: 700; letter-spacing: -1px; line-height: 1.15;
+      color: var(--text); transition: color 0.25s;
+    }
+    .hero-accent { color: var(--accent); }
+    .hero-sub  { font-size: 14px; color: var(--muted); transition: color 0.25s; }
+    .hero-tag  {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 11px; text-transform: uppercase; letter-spacing: 3px;
+      color: var(--accent); transition: color 0.25s;
+    }
+
+    .card-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 15px; font-weight: 600;
+      color: var(--text);
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 20px; transition: color 0.25s;
+    }
+    .card-title i { font-size: 13px; color: var(--accent); transition: color 0.25s; }
+
+    .brand-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 18px; font-weight: 600;
+      color: var(--text); letter-spacing: -0.3px; line-height: 1;
+      transition: color 0.25s;
+    }
+    .brand-sub {
+      font-size: 11px; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px;
+      transition: color 0.25s;
+    }
+
+    .result-card {
+      border-radius: 8px; padding: 16px;
+      border: 1px solid rgba(0,180,220,0.3);
+      transition: background 0.25s, border-color 0.25s;
+    }
+    body.dark-mode .result-card { background: #003D4D; }
+    body:not(.dark-mode) .result-card { background: #E0F4FC; border-color: rgba(0,120,180,0.3); }
+
+    .result-metric-label {
+      font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.8px; color: var(--label); margin-bottom: 4px;
+    }
+    .result-metric-value {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 22px; font-weight: 700; color: var(--accent);
+    }
+    .error-card {
+      border-radius: 8px; padding: 12px 14px;
+      font-size: 13px; font-weight: 500;
+      display: flex; align-items: center; gap: 8px;
+      transition: background 0.25s, color 0.25s;
+    }
+    body.dark-mode .error-card { background: rgba(255,107,53,0.1); border: 1px solid rgba(255,107,53,0.3); color: var(--warning); }
+    body:not(.dark-mode) .error-card { background: #FEE8DC; border: 1px solid rgba(180,60,10,0.3); color: var(--warning); }
+
+    /* ── Section divider ── */
+    .section-label {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 11px; text-transform: uppercase; letter-spacing: 2.5px;
+      color: var(--muted); margin-bottom: 16px; margin-top: 40px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .section-label::before, .section-label::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* ── Session clock ── */
+    .session-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+      transition: border-color 0.25s;
+    }
+    .session-row:last-child { border-bottom: none; }
+    .session-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .session-dot.open  { background: var(--positive); box-shadow: 0 0 6px var(--positive); animation: pulse-dot 2s infinite; }
+    .session-dot.closed { background: var(--muted); }
+    .session-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 14px; font-weight: 600; color: var(--text);
+      transition: color 0.25s;
+    }
+    .session-time {
+      font-size: 12px; color: var(--muted); margin-top: 1px;
+      transition: color 0.25s;
+    }
+    .session-countdown {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 13px; font-weight: 600; text-align: right;
+      transition: color 0.25s;
+    }
+
+    /* ── R-Multiple bars ── */
+    .r-bar-wrap {
+      margin-bottom: 10px;
+    }
+    .r-bar-header {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 5px;
+    }
+    .r-bar-label {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 13px; font-weight: 600; color: var(--text);
+      transition: color 0.25s;
+    }
+    .r-bar-value {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 14px; font-weight: 700; color: var(--accent);
+      transition: color 0.25s;
+    }
+    .r-bar-track {
+      height: 6px; border-radius: 3px;
+      background: var(--surface2); overflow: hidden;
+      transition: background 0.25s;
+    }
+    .r-bar-fill {
+      height: 100%; border-radius: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--positive));
+      transition: width 0.4s ease;
+    }
+
+    /* ── Win rate table highlight ── */
+    .profitable { background: rgba(0,229,160,0.08) !important; }
+    .wr-highlight {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700; color: var(--positive);
+    }
+
+    /* ── Cheat sheet pills ── */
+    .rule-pill {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      transition: background 0.25s, border-color 0.25s;
+    }
+    .rule-pct {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 20px; font-weight: 700; color: var(--accent);
+      transition: color 0.25s;
+    }
+    .rule-desc {
+      font-size: 12px; color: var(--muted); margin-top: 2px;
+      transition: color 0.25s;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ── Header ── -->
+  <header style="max-width:960px;" class="mx-auto px-5 pt-8 pb-2 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
+           style="background:rgba(0,180,220,0.12); border:1px solid var(--accent); color:var(--accent); transition:color 0.25s,border-color 0.25s;">
+        <i class="fas fa-chart-line"></i>
+      </div>
+      <div>
+        <p class="brand-name">CalcMyRisk</p>
+        <p class="brand-sub">Position Sizing</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="status-pill">
+        <span class="pulse-dot w-2 h-2 rounded-full flex-shrink-0"
+              style="background:var(--positive); box-shadow:0 0 6px var(--positive);"></span>
+        Live
+      </div>
+      <button id="toggleThemeBtn"><i class="fas fa-moon"></i></button>
+    </div>
+  </header>
+
+  <!-- ── Hero ── -->
+  <div style="max-width:960px;" class="mx-auto px-5 pt-10 pb-8 text-center">
+    <p class="hero-tag mb-3">Trade with precision</p>
+    <h1 class="hero-title mb-3">Calculate Your <span class="hero-accent">Risk</span></h1>
+    <p class="hero-sub">Define your position size before you enter — not after.</p>
+  </div>
+
+  <main style="max-width:960px;" class="mx-auto px-5 pb-20">
+
+    <!-- ══ ROW 1: Core calculators ══ -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+      <!-- Position Size Calculator -->
+      <div class="card p-7">
+        <h2 class="card-title"><i class="fas fa-sliders"></i> Position Size</h2>
+        <div style="margin-bottom:12px;">
+          <label class="lbl">Max Risk ($)</label>
+          <input type="number" id="maxRisk" placeholder="e.g. 200" step="any" class="field" />
+        </div>
+        <div style="margin-bottom:12px;">
+          <label class="lbl">Entry Price</label>
+          <input type="number" id="entryPrice" placeholder="e.g. 150.00" step="any" class="field" />
+        </div>
+        <div style="margin-bottom:16px;">
+          <label class="lbl">Stop Loss Price</label>
+          <input type="number" id="stopLossPrice" placeholder="e.g. 145.00" step="any" class="field" />
+        </div>
+        <button id="calculateBtn" class="btn-primary">
+          <i class="fas fa-bolt"></i> Calculate Position
+        </button>
+        <div id="result"></div>
+      </div>
+
+      <!-- Fixed Risk Table -->
+      <div class="card p-7">
+        <h2 class="card-title"><i class="fas fa-table-cells"></i> Fixed Risk Table</h2>
+        <div style="margin-bottom:16px;">
+          <label class="lbl">Risk Amount ($)</label>
+          <input type="number" id="fixedRiskInput" value="100" step="any" class="field" />
+        </div>
+        <div class="risk-table-wrap">
+          <table>
+            <thead><tr><th>Stop Loss ($)</th><th>Shares to Buy</th></tr></thead>
+            <tbody id="riskTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ROW 2: R-Multiple + Win Rate ══ -->
+    <p class="section-label">Analysis Tools</p>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+      <!-- R-Multiple Calculator -->
+      <div class="card p-7">
+        <h2 class="card-title"><i class="fas fa-magnifying-glass-chart"></i> R-Multiple Targets</h2>
+        <p style="font-size:13px; color:var(--muted); margin-bottom:16px; line-height:1.5;">
+          Enter your risk amount (1R) to see what each reward target is worth in dollars.
+        </p>
+        <div style="margin-bottom:16px;">
+          <label class="lbl">1R — Your Risk ($)</label>
+          <input type="number" id="rMultipleInput" placeholder="e.g. 100" step="any" class="field" />
+        </div>
+        <div id="rMultipleOutput">
+          <p style="font-size:13px; color:var(--muted); text-align:center; padding:16px 0;">Enter a risk amount above.</p>
+        </div>
+      </div>
+
+      <!-- Win Rate Breakeven Table -->
+      <div class="card p-7">
+        <h2 class="card-title"><i class="fas fa-percent"></i> Win Rate Needed</h2>
+        <p style="font-size:13px; color:var(--muted); margin-bottom:16px; line-height:1.5;">
+          The minimum win rate to break even at each reward:risk ratio. Rows above your actual win rate are unprofitable.
+        </p>
+        <div class="risk-table-wrap">
+          <table>
+            <thead><tr><th>R:R Ratio</th><th>Min Win Rate</th><th>Edge at 50% WR</th></tr></thead>
+            <tbody id="winRateBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ROW 3: Sessions + Rules ══ -->
+    <p class="section-label">Market Context</p>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+      <!-- Trading Session Clock -->
+      <div class="card p-7">
+        <h2 class="card-title"><i class="fas fa-clock"></i> Trading Sessions</h2>
+        <p style="font-size:13px; color:var(--muted); margin-bottom:16px;">
+          Your local time: <span id="localTimeDisplay" style="font-family:'Space Grotesk',sans-serif; font-weight:600; color:var(--text);"></span>
+        </p>
+        <div id="sessionList"></div>
+      </div>
+
+      <!-- Risk Rules Cheat Sheet -->
+      <div class="card p-7">
+        <h2 class="card-title"><i class="fas fa-shield-halved"></i> Risk Rules</h2>
+        <p style="font-size:13px; color:var(--muted); margin-bottom:16px; line-height:1.5;">
+          Common position sizing rules. These aren't laws — but they're a useful starting point.
+        </p>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px;">
+          <div class="rule-pill">
+            <p class="rule-pct">1%</p>
+            <p class="rule-desc">Conservative — suits beginners or volatile markets</p>
+          </div>
+          <div class="rule-pill">
+            <p class="rule-pct">2%</p>
+            <p class="rule-desc">Standard — widely used by professional traders</p>
+          </div>
+          <div class="rule-pill">
+            <p class="rule-pct">5%</p>
+            <p class="rule-desc">Aggressive — only with high conviction setups</p>
+          </div>
+          <div class="rule-pill">
+            <p class="rule-pct">10%</p>
+            <p class="rule-desc">Max single exposure — any higher concentrates risk</p>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid var(--border); padding-top:16px;">
+          <p class="lbl" style="margin-bottom:10px;">Daily Loss Limit Check</p>
+          <div style="display:flex; gap:8px; margin-bottom:10px;">
+            <div style="flex:1;">
+              <label class="lbl">Account ($)</label>
+              <input type="number" id="dllAccount" placeholder="10000" class="field" style="font-size:13px; padding:8px 12px;" />
+            </div>
+            <div style="flex:1;">
+              <label class="lbl">Max Daily Loss %</label>
+              <input type="number" id="dllPercent" placeholder="3" class="field" style="font-size:13px; padding:8px 12px;" />
+            </div>
+          </div>
+          <div id="dllResult" style="font-size:13px; color:var(--muted);">Fill in your account size and max daily loss % above.</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer style="text-align:center; padding-bottom:40px; font-size:12px; color:var(--muted);">
+    Built for traders who size before they enter &nbsp;·&nbsp; CalcMyRisk
+  </footer>
+
+  <!-- ── Result observer ── -->
+  <script>
+    new MutationObserver(() => {
+      const el  = document.getElementById('result');
+      const raw = el.textContent.trim();
+      if (!raw) return;
+      const isError = /please|cannot|fill/i.test(raw);
+      if (isError) {
+        el.innerHTML = `<div class="reveal error-card"><i class="fas fa-triangle-exclamation" style="font-size:12px;flex-shrink:0;"></i> ${raw}</div>`;
+      } else {
+        const sm = raw.match(/Buy (\d[\d,]*) shares/);
+        const pm = raw.match(/\$([\d,.]+)/);
+        if (sm && pm) {
+          el.innerHTML = `
+            <div class="reveal result-card">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div><p class="result-metric-label">Shares to Buy</p><p class="result-metric-value">${sm[1]}</p></div>
+                <div><p class="result-metric-label">Position Size</p><p class="result-metric-value">$${pm[1]}</p></div>
+              </div>
+            </div>`;
+        }
+      }
+    }).observe(document.getElementById('result'), { childList:true, subtree:true, characterData:true });
+  </script>
+
+  <!-- ── R-Multiple Calculator ── -->
+  <script>
+    const rMultiples = [1, 1.5, 2, 2.5, 3, 4, 5];
+
+    function updateRMultiple() {
+      const risk = parseFloat(document.getElementById('rMultipleInput').value);
+      const out  = document.getElementById('rMultipleOutput');
+      if (isNaN(risk) || risk <= 0) {
+        out.innerHTML = `<p style="font-size:13px;color:var(--muted);text-align:center;padding:16px 0;">Enter a risk amount above.</p>`;
+        return;
+      }
+      out.innerHTML = rMultiples.map(r => {
+        const val  = (risk * r).toFixed(2);
+        const pct  = (r / rMultiples[rMultiples.length - 1]) * 100;
+        const isOne = r === 1;
+        return `
+          <div class="r-bar-wrap">
+            <div class="r-bar-header">
+              <span class="r-bar-label">${r}R${isOne ? ' — breakeven' : ''}</span>
+              <span class="r-bar-value">$${parseFloat(val).toLocaleString(undefined,{minimumFractionDigits:2})}</span>
+            </div>
+            <div class="r-bar-track">
+              <div class="r-bar-fill" style="width:${pct}%;"></div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    document.getElementById('rMultipleInput').addEventListener('input', updateRMultiple);
+  </script>
+
+  <!-- ── Win Rate Breakeven Table ── -->
+  <script>
+    (function buildWinRateTable() {
+      const ratios = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 10];
+      const body   = document.getElementById('winRateBody');
+      body.innerHTML = ratios.map((rr, i) => {
+        const minWR   = (1 / (1 + rr)) * 100;
+        const edge50  = (0.5 * rr - 0.5) * 100; // EV at 50% WR
+        const profAt50 = edge50 >= 0;
+        const isLast  = i === ratios.length - 1;
+        return `
+          <tr class="${profAt50 ? 'profitable' : ''}" style="${isLast?'':''}">
+            <td>${rr}:1</td>
+            <td class="${profAt50 ? 'green' : 'warn'}">${minWR.toFixed(1)}%</td>
+            <td class="${profAt50 ? 'green' : 'warn'}">${edge50 >= 0 ? '+' : ''}${edge50.toFixed(1)}%</td>
+          </tr>`;
+      }).join('');
+    })();
+  </script>
+
+  <!-- ── Trading Session Clock ── -->
+  <script>
+    const SESSIONS = [
+      { name: 'Sydney',   tz: 'Australia/Sydney',        open: 22, close: 7,  flag: '🇦🇺' },
+      { name: 'Tokyo',    tz: 'Asia/Tokyo',               open: 23, close: 8,  flag: '🇯🇵' },
+      { name: 'London',   tz: 'Europe/London',            open: 8,  close: 16, flag: '🇬🇧' },
+      { name: 'New York', tz: 'America/New_York',         open: 13, close: 22, flag: '🇺🇸' },
+    ];
+
+    function getHourInTZ(tz) {
+      const now = new Date();
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz, hour: 'numeric', minute: 'numeric', hour12: false
+      }).formatToParts(now);
+      const h = parseInt(parts.find(p=>p.type==='hour').value);
+      const m = parseInt(parts.find(p=>p.type==='minute').value);
+      return h + m / 60;
+    }
+
+    function isSessionOpen(s) {
+      const h = getHourInTZ(s.tz);
+      if (s.open < s.close) return h >= s.open && h < s.close;
+      return h >= s.open || h < s.close; // overnight
+    }
+
+    function hoursUntil(targetHour, tz) {
+      const now  = new Date();
+      const cur  = getHourInTZ(tz);
+      let diff   = targetHour - cur;
+      if (diff < 0) diff += 24;
+      return diff;
+    }
+
+    function fmtCountdown(h) {
+      const hrs = Math.floor(h);
+      const min = Math.round((h - hrs) * 60);
+      if (hrs === 0) return `${min}m`;
+      return `${hrs}h ${min}m`;
+    }
+
+    function renderSessions() {
+      const list = document.getElementById('sessionList');
+      const localEl = document.getElementById('localTimeDisplay');
+
+      localEl.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      list.innerHTML = SESSIONS.map(s => {
+        const open  = isSessionOpen(s);
+        const label = open ? 'Open' : 'Closed';
+        const color = open ? 'var(--positive)' : 'var(--muted)';
+        const until = open
+          ? `Closes in ${fmtCountdown(hoursUntil(s.close, s.tz))}`
+          : `Opens in ${fmtCountdown(hoursUntil(s.open, s.tz))}`;
+
+        // local open/close times
+        const fmt = (h) => {
+          const d = new Date(); d.setHours(0,0,0,0);
+          const utcH = h; // approximate display only
+          return `${String(utcH).padStart(2,'0')}:00 UTC`;
+        };
+
+        return `
+          <div class="session-row">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span class="session-dot ${open?'open':'closed'}"></span>
+              <div>
+                <p class="session-name">${s.flag} ${s.name}</p>
+                <p class="session-time">${open ? '● Open now' : '○ Closed'}</p>
+              </div>
+            </div>
+            <div class="session-countdown" style="color:${color};">
+              ${until}
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    renderSessions();
+    setInterval(renderSessions, 30000); // refresh every 30s
+  </script>
+
+  <!-- ── Daily Loss Limit ── -->
+  <script>
+    function updateDLL() {
+      const acc = parseFloat(document.getElementById('dllAccount').value);
+      const pct = parseFloat(document.getElementById('dllPercent').value);
+      const out = document.getElementById('dllResult');
+      if (isNaN(acc) || isNaN(pct) || acc <= 0 || pct <= 0) {
+        out.innerHTML = `<span style="color:var(--muted);">Fill in your account size and max daily loss % above.</span>`;
+        return;
+      }
+      const limit = (acc * pct / 100).toFixed(2);
+      out.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;transition:background 0.25s,border-color 0.25s;">
+          <span style="font-size:12px;color:var(--label);text-transform:uppercase;letter-spacing:0.5px;">Max daily loss</span>
+          <span style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:var(--warning);">$${parseFloat(limit).toLocaleString(undefined,{minimumFractionDigits:2})}</span>
+        </div>`;
+    }
+    document.getElementById('dllAccount').addEventListener('input', updateDLL);
+    document.getElementById('dllPercent').addEventListener('input', updateDLL);
+  </script>
+
+  <script src="script.js"></script>
+</body>
+</html>
